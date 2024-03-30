@@ -72,6 +72,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import nl.joery.animatedbottombar.AnimatedBottomBar
 import tachiyomi.core.util.lang.launchIO
@@ -465,9 +466,8 @@ class MainActivity : AppCompatActivity() {
         window.navigationBarColor = ContextCompat.getColor(this, android.R.color.transparent)
     }
 
-    @kotlin.OptIn(DelicateCoroutinesApi::class)
     override fun onDestroy() {
-        launchIO { torrServerStop() }
+        runBlocking(Dispatchers.IO) { torrServerStop() }
         super.onDestroy()
     }
 

@@ -27,7 +27,6 @@ import ani.dantotsu.R
 import ani.dantotsu.connections.crashlytics.CrashlyticsInterface
 import ani.dantotsu.copyToClipboard
 import ani.dantotsu.currActivity
-import ani.dantotsu.currContext
 import ani.dantotsu.databinding.BottomSheetSelectorBinding
 import ani.dantotsu.databinding.ItemStreamBinding
 import ani.dantotsu.databinding.ItemUrlBinding
@@ -55,8 +54,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import tachiyomi.core.util.lang.launchIO
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.text.DecimalFormat
@@ -270,44 +269,27 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     @androidx.annotation.OptIn(UnstableApi::class)
-    private fun launchWithTorrentServer(video: Video, media: Media) {
-        launchIO {
+    private suspend fun launchWithTorrentServer(video: Video) = withContext(Dispatchers.IO) {
             ExoplayerView.torrentHash?.let { TorrentServerApi.remTorrent(it) }
             val index = if (video.file.url.contains("index=")) {
                 try {
                     video.file.url.substringAfter("index=").toInt()
-                } catch (e: NumberFormatException) {
-                    0
-                }
-            } else 0
-
+                } catch (ignored: NumberFormatException) { 0 }
+            } else { 0 }
             val currentTorrent = TorrentServerApi.addTorrent(
                 video.file.url, video.quality.toString(), "", "", false
             )
             ExoplayerView.torrentHash = currentTorrent.hash
             video.file.url =
                 TorrentServerUtils.getTorrentPlayLink(currentTorrent, index)
-            if (launch == true) {
-                Intent(currContext(), ExoplayerView::class.java).apply {
-                    ExoplayerView.media = media
-                    ExoplayerView.initialized = true
-                    startActivity(this)
-                }
-            } else {
-                model.setEpisode(
-                    media.anime!!.episodes!![media.anime.selectedEpisode!!]!!,
-                    "startExo no launch"
-                )
-            }
-            dismiss()
-        }
     }
 
     @SuppressLint("UnsafeOptInUsageError")
     fun startExoplayer(media: Media) {
         prevEpisode = null
+
+        dismiss()
 
         episode?.let { ep ->
             val video = ep.extractors?.find {
@@ -315,21 +297,17 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
             }?.videos?.getOrNull(ep.selectedVideo)
             video?.file?.url?.let { videoUrl ->
                 if (videoUrl.startsWith("magnet:") || videoUrl.endsWith(".torrent")) {
-                    stopAddingToList()
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        binding.selectorRecyclerView.visibility = View.GONE
-                        binding.selectorProgressBar.visibility = View.VISIBLE
-                        launchWithTorrentServer(video, media)
+                        runBlocking(Dispatchers.IO) {
+                            launchWithTorrentServer(video)
+                        }
                     } else {
-                        dismiss()
                         launchWithExternalPlayer(ep, video)
+                        return
                     }
-                    return
                 }
             }
         }
-
-        dismiss()
 
         if (launch!! || model.watchSources!!.isDownloadedSource(media.selected!!.sourceIndex)) {
             stopAddingToList()

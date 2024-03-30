@@ -409,7 +409,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
         hideSystemBarsExtendView()
 
         onBackPressedDispatcher.addCallback(this) {
-            launchIO {
+            runBlocking(Dispatchers.IO) {
                 torrentHash?.let {
                     TorrentServerApi.remTorrent(it)
                 }
@@ -1983,7 +1983,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
             releasePlayer()
         }
 
-        launchIO {
+        runBlocking(Dispatchers.IO) {
             torrentHash?.let {
                 TorrentServerApi.remTorrent(it)
             }
