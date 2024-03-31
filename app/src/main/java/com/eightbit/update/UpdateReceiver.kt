@@ -12,7 +12,7 @@
  * subject to to the terms and conditions of the Apache License, Version 2.0.
  */
 
-package ani.dantotsu.update
+package com.eightbit.update
 
 import android.appwidget.AppWidgetManager
 import android.content.BroadcastReceiver
@@ -36,7 +36,11 @@ class UpdateReceiver : BroadcastReceiver() {
         intent.flags = 0
         intent.data = null
         if (Intent.ACTION_MY_PACKAGE_REPLACED == action) {
-            updateWidgets(context)
+            deletePackages(
+                Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS
+                ))
+            deletePackages(File(Environment.DIRECTORY_DOWNLOADS))
         } else if (BuildConfig.BUILD_TYPE.contentEquals("matagi")) {
             when (intent.getIntExtra(
                 PackageInstaller.EXTRA_STATUS,
@@ -55,13 +59,7 @@ class UpdateReceiver : BroadcastReceiver() {
                 }
 
                 PackageInstaller.STATUS_FAILURE_ABORTED -> { }
-                PackageInstaller.STATUS_SUCCESS -> {
-                    deletePackages(
-                        Environment.getExternalStoragePublicDirectory(
-                        Environment.DIRECTORY_DOWNLOADS
-                    ))
-                    deletePackages(File(Environment.DIRECTORY_DOWNLOADS))
-                }
+                PackageInstaller.STATUS_SUCCESS -> { }
                 else -> {
                     val error = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
                     if (error?.contains("Session was abandoned") != true)
@@ -75,16 +73,6 @@ class UpdateReceiver : BroadcastReceiver() {
         directory.listFiles()?.filter { file ->
             file.name.startsWith("Dantotsu-") && file.extension == "apk"
         }?.forEach { it.delete() }
-    }
-
-    private fun updateWidgets(context: Context) {
-        val resumableWidget = Intent(context, ResumableWidget::class.java).apply {
-            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-            val ids: IntArray = AppWidgetManager.getInstance(context.applicationContext)
-                .getAppWidgetIds(this.component)
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-        }
-        context.sendBroadcast(resumableWidget)
     }
 
     private fun startLauncherActivity(context: Context, intent: Intent?) {
