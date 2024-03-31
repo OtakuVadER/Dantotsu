@@ -6,32 +6,28 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
-import androidx.media3.common.C.TRACK_TYPE_TEXT
 import androidx.media3.common.C.TrackType
-import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
 import ani.dantotsu.databinding.BottomSheetSubtitlesBinding
 import ani.dantotsu.databinding.ItemSubtitleTextBinding
-import ani.dantotsu.settings.saving.PrefManager
-import ani.dantotsu.settings.saving.PrefName
 
+@OptIn(UnstableApi::class)
 class TrackGroupDialogFragment(
-    exoPlayer: ExoPlayer, trackGroups: ArrayList<Tracks.Group>, type : @TrackType Int
+    instance: ExoplayerView, trackGroups: ArrayList<Tracks.Group>, type : @TrackType Int
 ) : BottomSheetDialogFragment() {
     private var _binding: BottomSheetSubtitlesBinding? = null
     private val binding get() = _binding!!
-    private var exoPlayer: ExoPlayer
+    private var instance: ExoplayerView
     private var trackGroups: ArrayList<Tracks.Group>
     private var type: @TrackType Int
 
     init {
-        this.exoPlayer = exoPlayer
+        this.instance = instance
         this.trackGroups = trackGroups
         this.type = type
     }
@@ -92,13 +88,7 @@ class TrackGroupDialogFragment(
                 }
                 binding.root.setOnClickListener {
                     dismiss()
-                    if (type == TRACK_TYPE_TEXT) PrefManager.setVal(PrefName.Subtitles, true)
-                    exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-                        .buildUpon()
-                        .setOverrideForType(
-                            TrackSelectionOverride(trackGroup.mediaTrackGroup, 0)
-                        )
-                        .build()
+                    instance.onSetTrackGroupOverride(trackGroup, type)
                 }
             }
         }

@@ -378,6 +378,10 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
             6 -> ResourcesCompat.getFont(this, R.font.blocky)
             else -> ResourcesCompat.getFont(this, R.font.poppins_semi_bold)
         }
+
+        playerView.subtitleView?.setApplyEmbeddedStyles(false)
+        playerView.subtitleView?.setApplyEmbeddedFontSizes(false)
+
         playerView.subtitleView?.setStyle(
             CaptionStyleCompat(
                 primaryColor,
@@ -388,6 +392,13 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
                 font
             )
         )
+
+        playerView.subtitleView?.alpha = when (PrefManager.getVal<Boolean>(PrefName.Subtitles)) {
+            true -> PrefManager.getVal(PrefName.SubAlpha)
+            false -> 0f
+        }
+        val fontSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat()
+        playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -493,13 +504,6 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
             }
         }
         setupSubFormatting(playerView)
-
-        playerView.subtitleView?.alpha = when (PrefManager.getVal<Boolean>(PrefName.Subtitles)) {
-            true -> PrefManager.getVal(PrefName.SubAlpha)
-            false -> 0f
-        }
-        val fontSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat()
-        playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
 
         if (savedInstanceState != null) {
             currentWindow = savedInstanceState.getInt(resumeWindow)
@@ -1861,13 +1865,24 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
         }, 500)
     }
 
+    fun onSetTrackGroupOverride(trackGroup: Tracks.Group, type: @C.TrackType Int) {
+        if (type == TRACK_TYPE_TEXT) PrefManager.setVal(PrefName.Subtitles, true)
+        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
+            .buildUpon()
+            .setOverrideForType(
+                TrackSelectionOverride(trackGroup.mediaTrackGroup, 0)
+            )
+            .build()
+        if (type == TRACK_TYPE_TEXT) setupSubFormatting(playerView)
+    }
+
     override fun onTracksChanged(tracks: Tracks) {
         val audioTracks: ArrayList<Tracks.Group> = arrayListOf()
         val subTracks: ArrayList<Tracks.Group> = arrayListOf()
         tracks.groups.forEach {
             when (it.type) {
                 TRACK_TYPE_AUDIO -> {
-                    audioTracks.add(it)
+                    if (it.isSupported(true)) audioTracks.add(it)
                 }
                 TRACK_TYPE_TEXT -> {
                     when {
@@ -1881,7 +1896,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
                         }
                         else -> {
                             if (torrentHash != null) {
-                                subTracks.add(it)
+                                if (it.isSupported(true)) subTracks.add(it)
                                 if (PrefManager.getVal(PrefName.Subtitles)) return@forEach
                             }
                             playerView.player?.trackSelectionParameters =
@@ -1898,31 +1913,38 @@ class ExoplayerView : AppCompatActivity(), Player.Listener, SessionAvailabilityL
         println("Track: ${tracks.groups.size}")
         exoAudioTrack.isVisible = audioTracks.size > 1
         exoAudioTrack.setOnClickListener {
-            TrackGroupDialogFragment(exoPlayer, audioTracks, TRACK_TYPE_AUDIO)
+            TrackGroupDialogFragment(this, audioTracks, TRACK_TYPE_AUDIO)
                 .show(supportFragmentManager, "dialog")
         }
         if (torrentHash != null) {
             exoSubtitle.isVisible = subTracks.size > 1
             exoSubtitle.setOnClickListener {
-                TrackGroupDialogFragment(exoPlayer, subTracks, TRACK_TYPE_TEXT)
+                TrackGroupDialogFragment(this, subTracks, TRACK_TYPE_TEXT)
                     .show(supportFragmentManager, "dialog")
             }
         }
     }
 
-    val onChangeSettings = registerForActivityResult(
+    private val onChangeSettings = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { _: ActivityResult ->
-        if (torrentHash != null && !PrefManager.getVal<Boolean>(PrefName.Subtitles)) {
-            exoPlayer.currentTracks.groups.forEach {
-                when (it.type) {
+        if (torrentHash != null) {
+            exoPlayer.currentTracks.groups.forEach { trackGroup ->
+                when (trackGroup.type) {
                     TRACK_TYPE_TEXT -> {
-                        playerView.player?.trackSelectionParameters =
-                            playerView.player?.trackSelectionParameters?.buildUpon()
-                                ?.addOverride(
-                                    TrackSelectionOverride(it.mediaTrackGroup, listOf())
-                                )
-                                ?.build()!!
+                        if (PrefManager.getVal(PrefName.Subtitles)) {
+                            onSetTrackGroupOverride(trackGroup, TRACK_TYPE_TEXT)
+                        } else {
+                            playerView.player?.let {
+                                it.trackSelectionParameters = it.trackSelectionParameters
+                                    .buildUpon()
+                                    .addOverride(
+                                        TrackSelectionOverride(trackGroup.mediaTrackGroup, listOf())
+                                    )
+                                    .build()
+                            }
+
+                        }
                     }
                     else -> { }
                 }
