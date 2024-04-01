@@ -120,10 +120,7 @@ object Debug {
         log.append(separator).append(separator).append(exception)
         val subject = context.getString(R.string.git_issue_title, BuildConfig.COMMIT)
         setClipboard(context, subject, log.toString())
-        when {
-            clipboard -> {}
-            else -> { submitLogcat(context, log.toString()) }
-        }
+        if (!clipboard) submitLogcat(context, log.toString())
     }
 
     @JvmStatic
