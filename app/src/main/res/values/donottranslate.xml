@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="git_issue_title" translatable="false">[Logcat]: Mr. Matagi #%1$s</string>
+    <string name="git_issue_title" translatable="false">[Logcat]: Mr∞Matagi #%1$s</string>
 
     <string name="memory_byte">Byte</string>
     <string name="memory_kilobyte">KB</string>
