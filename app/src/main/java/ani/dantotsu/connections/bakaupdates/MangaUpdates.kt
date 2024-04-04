@@ -3,6 +3,7 @@ package ani.dantotsu.connections.bakaupdates
 import ani.dantotsu.client
 import ani.dantotsu.connections.anilist.api.FuzzyDate
 import ani.dantotsu.tryWithSuspend
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okio.ByteString.Companion.encode
@@ -34,7 +35,6 @@ class MangaUpdates {
                 }
             }
             val res = client.post(apiUrl, json = query).parsed<MangaUpdatesResponse>()
-            res.results?.forEach{ println("MangaUpdates: $it") }
             res.results?.first { it.metadata.series.lastUpdated?.timestamp != null }
         }
     }
